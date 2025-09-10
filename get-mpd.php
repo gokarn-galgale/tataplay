@@ -9,12 +9,35 @@ $subscriberId = $loginData['data']['subscriberId'];
 $userToken = $loginData['data']['userAuthenticateToken'];
 $cacheData = file_exists($cachePath) ? json_decode(file_get_contents($cachePath), true) : [];
 $useCache = false;
-if (isset($cacheData[$id])) {
-    $cachedUrl = $cacheData[$id]['url'];
-    parse_str(parse_url($cachedUrl, PHP_URL_QUERY), $queryParams);
-    $exp = isset($queryParams['hdntl']) ? null : ($queryParams['exp'] ?? null);
-    if (isset($queryParams['hdntl'])) {parse_str(str_replace('~', '&', $queryParams['hdntl']), $hdntlParams);$exp = $hdntlParams['exp'] ?? null;}
-    if ($exp && is_numeric($exp) && time() < (int)$exp) {$mpdurl = $cachedUrl;$useCache = true;}
+$is_timeshift = isset($_GET['timeshift']);
+
+if ($is_timeshift) {
+    $start_time = $_GET['start'] ?? '';
+    $end_time = $_GET['end'] ?? '';
+    if (!$start_time || !$end_time) {
+        http_response_code(400);
+        echo "Missing start or end time for timeshift.";
+        exit;
+    }
+    $content_api = "https://tb.tapi.videoready.tv/content-detail/api/partner/cdn/player/details/chotiluli/$id?type=timeshift&time_start=$start_time&time_end=$end_time";
+    $cache_key = $id . '_timeshift_' . $start_time . '_' . $end_time;
+    if (isset($cacheData[$cache_key])) {
+        $cachedUrl = $cacheData[$cache_key]['url'];
+        parse_str(parse_url($cachedUrl, PHP_URL_QUERY), $queryParams);
+        $exp = isset($queryParams['hdntl']) ? null : ($queryParams['exp'] ?? null);
+        if (isset($queryParams['hdntl'])) {parse_str(str_replace('~', '&', $queryParams['hdntl']), $hdntlParams);$exp = $hdntlParams['exp'] ?? null;}
+        if ($exp && is_numeric($exp) && time() < (int)$exp) {$mpdurl = $cachedUrl;$useCache = true;}
+    }
+} else {
+    $content_api = 'https://tb.tapi.videoready.tv/content-detail/api/partner/cdn/player/details/chotiluli/' . $id;
+    $cache_key = $id;
+    if (isset($cacheData[$cache_key])) {
+        $cachedUrl = $cacheData[$cache_key]['url'];
+        parse_str(parse_url($cachedUrl, PHP_URL_QUERY), $queryParams);
+        $exp = isset($queryParams['hdntl']) ? null : ($queryParams['exp'] ?? null);
+        if (isset($queryParams['hdntl'])) {parse_str(str_replace('~', '&', $queryParams['hdntl']), $hdntlParams);$exp = $hdntlParams['exp'] ?? null;}
+        if ($exp && is_numeric($exp) && time() < (int)$exp) {$mpdurl = $cachedUrl;$useCache = true;}
+    }
 }
 
 if (!$useCache) {
@@ -33,7 +56,7 @@ if (!$useCache) {
     if (!$getheaders || !isset($getheaders['Location'])) {header("Location: $decryptedUrl", true, 302);exit;}
     $location = is_array($getheaders['Location']) ? end($getheaders['Location']) : $getheaders['Location'];
     $mpdurl = strpos($location, '&') !== false ? substr($location, 0, strpos($location, '&')) : $location;
-    $cacheData[$id] = ['url' => $mpdurl, 'updated_at' => time()];
+    $cacheData[$cache_key] = ['url' => $mpdurl, 'updated_at' => time()];
     file_put_contents($cachePath, json_encode($cacheData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 }
 

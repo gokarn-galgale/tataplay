@@ -37,6 +37,7 @@ foreach ($channels as $channel) {
     $channel_name = $channel['title'];
     $channel_logo = $channel['transparentImageUrl'];
     $channel_genre = $channel['genres'][0] ?? 'General';
+    $has_catchup = $channel['catchupAvailable'] ?? false;
     if (in_array('HD', $channel['genres'])) {$channel_genre .= ", HD";}
 
     $license_url = "https://tp.drmlive-01.workers.dev?id={$channel_id}";
@@ -48,4 +49,17 @@ foreach ($channels as $channel) {
     echo "#KODIPROP:inputstream.adaptive.manifest_type=mpd\n";
     echo "#EXTVLCOPT:http-user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36\n";
     echo "{$channel_live}\n\n";
+
+    if ($has_catchup) {
+        $catchup_start = date('YmdHis', strtotime('-30 days'));
+        $catchup_end = date('YmdHis');
+        $channel_catchup = "{$base_url}/{$stream_path}?id={$channel_id}&timeshift=1&start={$catchup_start}&end={$catchup_end}{$liveheaders}";
+
+        echo "#EXTINF:-1 tvg-id=\"ts{$channel_id}\" tvg-logo=\"{$channel_logo}\" group-title=\"{$channel_genre}\",{$channel_name} (Catch-up)\n";
+        echo "#KODIPROP:inputstream.adaptive.license_type=clearkey\n";
+        echo "#KODIPROP:inputstream.adaptive.license_key={$license_url}\n";
+        echo "#KODIPROP:inputstream.adaptive.manifest_type=mpd\n";
+        echo "#EXTVLCOPT:http-user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36\n";
+        echo "{$channel_catchup}\n\n";
+    }
 }
